@@ -53,12 +53,12 @@ class ProofTestCase(TestCase):
         cons = {Var("Q")}
 
         """
-        P   Q  ||  P   Q -> P   Q
-        -----------------------
-        T   T      T     T
-        T   F      T     T      F *
-        F   T      F
-        F   F      F
+        P   Q  |  P   Q -> P   Q
+        -------+----------------
+        T   T  |   T     T
+        T   F  |   T     T      F *
+        F   T  |   F
+        F   F  |   F
         """
 
         try:
@@ -68,10 +68,10 @@ class ProofTestCase(TestCase):
             self.assertFalse(counter["Q"])
 
         """
-        P  ||  P   not P
-        --------------
-        T      T     F   *
-        F      F
+        P  |  P   not P
+        ---+-----------
+        T  |   T     F   *
+        F  |   F
         """
 
         ante = {Var("P")}
@@ -93,16 +93,16 @@ class ProofTestCase(TestCase):
         cons = {Not(Cond(Var("P"),
                          Var("Q")))}
         """
-        P   Q   R  ||  not ((not P) -> Q   not (R -> P)   P or R   not (R -> Q)   not (P -> Q)
-        --------------------------------------------------------------------------------------
-        T   T   T              F
-        T   T   F              F
-        T   F   T              F
-        T   F   F              F
-        F   T   T              F
-        F   T   F              F
-        F   F   T              T                 T           T           T             F       *
-        F   F   F              T                 F
+        P   Q   R  |  not ((not P) -> Q   not (R -> P)   P or R   not (R -> Q)   not (P -> Q)
+        -----------+-------------------------------------------------------------------------
+        T   T   T  |           F
+        T   T   F  |           F
+        T   F   T  |           F
+        T   F   F  |           F
+        F   T   T  |           F
+        F   T   F  |           F
+        F   F   T  |           T                 T           T           T             F       *
+        F   F   F  |           T                 F
         """
 
         try:
