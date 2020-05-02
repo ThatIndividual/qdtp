@@ -9,8 +9,8 @@ logic and how their rules are applied. The reason for which sequents have these
 specific qualities are beyond the scope of this comment (and would be many times
 longer than the program itself).
 
-Sequent explainer
-=================
+Sequent notation explainer
+--------------------------
 
 A sequent is a logical sentence of the following form:
 
@@ -51,7 +51,8 @@ the above can be translated as such:
 Sequent rule notation explainer
 -------------------------------
 
-The sequent rules use a line to separate the given from the proved, like so:
+The sequent rules use a line to separate the premises from the conclusion, like
+so:
 
      a     b
     --------
@@ -59,7 +60,7 @@ The sequent rules use a line to separate the given from the proved, like so:
      
 A rule of this form simply means "if we know that "a" is true and we know that
 "b" is true, then we can deduce that "a and b" is true". Usually the rules go
-from simple statements on the top to more complex statements on the top.
+from simple statements on the top to more complex statements on the bottom.
 
 Because the program does deduction (taking a complex sentence and trying to find
 values for the basic propositions that disprove it) and not computation (given
@@ -80,8 +81,8 @@ This is the rule for negation elimination on the left side.
 "L" and "R" are simply sets that represent what other statements might be on the
 left or right side. They can be empty. In plain language the above rule is
 "given a sequent that has "not a" on the left side, we can transform it into a
-sequent that has "a" on the right side". For example, the following are correct
-applications:
+sequent that has "a" on the right side". For example, the following is a correct
+application:
 
            {(not a) -> (not b)} => {not b, a}
     ---------------------------------------------
@@ -95,7 +96,7 @@ An aditional example, conditional elimination on the left side:
         
 Here, the rule branches, just like in our initial example. If the bottom is to
 be false then one of these branches must also be false. And in order to find out
-which we must of course exaust both of them. Let's apply this rule to our
+which we must of course exhaust both of them. Let's apply this rule to our
 earlier application:
 
             {} => {not b, a, not a}    {not b} => {not b, a}
@@ -106,10 +107,10 @@ earlier application:
 
 These rules applications go on until a branch has only a sequent containing
 basic propositions on both sides. This sequent can be simplified no further and
-at this point we know if we have a counterexaple on our hands.
+at this point we know if we have a counterexample on our hands.
 
-If the two sides share at one element, then the sequent cannot be made to be
-false no matter what values we assign to our propositions. For example:
+If the two sides share at least one element, then the sequent cannot be made to
+be false no matter what values we assign to our propositions. For example:
 
     {P, Q} => {Q, R}   translates to   (P and Q) -> (Q or R)
     
