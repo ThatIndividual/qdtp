@@ -1,30 +1,154 @@
-from abc import ABC, abstractmethod, ABCMeta
+from abc import abstractmethod, ABCMeta
 from dataclasses import dataclass
 from typing import Set, List
 
+"""
+The following program uses sequent calculus rules to check if a given argument
+is valid or not. We will explain what sequents are in the terms of propositional
+logic and how their rules are applied. The reason for which sequents have these
+specific qualities are beyond the scope of this comment (and would be many times
+longer than the program itself).
 
-def class_name(object):
-    return type(object).__name__.lower()
+Sequent explainer
+=================
 
+A sequent is a logical sentence of the following form:
+
+    a1 and a2 and ... and an -> b1 or b2 or ... or bn
+
+Meaning the following are sequents:
+
+     P and Q -> R or S
+     P and Q -> R
+           P -> Q or R
+           P -> Q
+       non P -> (non P) or (P and Q)
+    (P or Q) -> (P and Q)
+
+The notation for sequents comes with a shorthand. Instead of writing
+
+    P and Q and R -> S or T
+    
+we write
+
+    {P, Q, R} => {S, T}
+    
+It can happen that either side of the sequent is empty, for example, the
+following are properly formed sequents:
+
+    {P, non P} => {}
+            {} => {P -> (Q -> P)}
+
+How would we translate such sequents back into common logical notation? Should
+the left side be empty, it is the same thing as it being equal to true. Should
+the right side be empty, it is the same thing as it being equal false. Meaning
+the above can be translated as such:
+
+    P and (non P) -> false
+             true -> (P -> (Q -> P))
+
+
+Sequent rule notation explainer
+-------------------------------
+
+The sequent rules use a line to separate the given from the proved, like so:
+
+     a     b
+    --------
+     a and b
+     
+A rule of this form simply means "if we know that "a" is true and we know that
+"b" is true, then we can deduce that "a and b" is true". Usually the rules go
+from simple statements on the top to more complex statements on the top.
+
+Because the program does deduction (taking a complex sentence and trying to find
+values for the basic propositions that disprove it) and not computation (given
+the values of the basic propositions, what is the value of a given complex
+sentence), we actually apply the rules "in reverse".
+
+So the above translation becomes: "if "a and b" is to be false, then either "a"
+is false or "b" is false".
+
+Of course, our rules pertain to sequents, so they look more like the following:
+
+              L => R + {a}
+    ----------------------
+    {not a} + L => R
+    
+This is the rule for negation elimination on the left side.
+
+"L" and "R" are simply sets that represent what other statements might be on the
+left or right side. They can be empty. In plain language the above rule is
+"given a sequent that has "not a" on the left side, we can transform it into a
+sequent that has "a" on the right side". For example, the following are correct
+applications:
+
+           {(not a) -> (not b)} => {not b, a}
+    ---------------------------------------------
+    {not a, (not a) -> (not b)} => {not b}
+
+An aditional example, conditional elimination on the left side:
+
+    L => R + {a}   {b} + L => R
+    ---------------------------
+        {a -> b} + L => R
+        
+Here, the rule branches, just like in our initial example. If the bottom is to
+be false then one of these branches must also be false. And in order to find out
+which we must of course exaust both of them. Let's apply this rule to our
+earlier application:
+
+            {} => {not b, a, not a}    {not b} => {not b, a}
+            ------------------------------------------------
+               {(not a) -> (not b)} => {not b, a}
+    ---------------------------------------------
+    {not a, (not a) -> (not b)} => {not b}
+
+These rules applications go on until a branch has only a sequent containing
+basic propositions on both sides. This sequent can be simplified no further and
+at this point we know if we have a counterexaple on our hands.
+
+If the two sides share at one element, then the sequent cannot be made to be
+false no matter what values we assign to our propositions. For example:
+
+    {P, Q} => {Q, R}   translates to   (P and Q) -> (Q or R)
+    
+Which is a tautology, no matter what values we assign to P, Q, R, it will always
+be true (sketch a truth table to convince yourself of this). If this is the case
+we say that the branch is "closed" and return to any other branch that can be
+furthered simplified.
+
+If every branch closes, then the initial argument is valid, we have failed to
+find any kind of counterexample to disprove it.
+
+But what if we find a sequent whose sides have nothing in common? We can easily
+derive a counterexample from it thusly:
+    
+    - everything on the left side is assigned true
+    - everything on the right side is assigned false
+    
+So, for example, if we end in the following branch:
+
+    {P, Q} => {R}   we have the counterexample   P: true
+                                                 Q: true
+                                                 R: false
+
+and we can stop applying any further rules as on counterexample is enough for
+the given argument to be proven invalid.
+"""
 
 class Sentence(metaclass=ABCMeta):
-    @abstractmethod
-    def to_latex(self):
-        raise NotImplementedError()
+    pass
 
 
 @dataclass(eq=True, frozen=True)
-class Variable(Sentence):
+class Var(Sentence):
     symbol: str
-
-    def to_latex(self):
-        return self.symbol
 
 
 class ComplexSentence(Sentence, metaclass=ABCMeta):
     left_branching = False
     right_branching = False
-    symbol = None
 
     @abstractmethod
     def left_rule(self):
@@ -36,78 +160,102 @@ class ComplexSentence(Sentence, metaclass=ABCMeta):
 
 
 @dataclass(eq=True, frozen=True)
-class Negation(ComplexSentence):
+class Not(ComplexSentence):
     negand: Sentence
 
     left_branching = False
     right_branching = False
-    symbol = "\\neg"
-
-    def to_latex(self):
-        return f"\\neg {self.negand.to_latex()}"
 
     def left_rule(self):
+        """
+                  L => R + {a}
+        ----------------------
+        {not a} + L => R
+        """
         return set(), {self.negand}
 
     def right_rule(self):
+        """
+        {not a} + L => R
+        ----------------------
+                  L => R + {a}
+        """
         return {self.negand}, set()
 
 
 @dataclass(eq=True, frozen=True)
-class Disjunction(ComplexSentence):
+class Or(ComplexSentence):
     left: Sentence
     right: Sentence
 
     left_branching = True
     right_branching = False
-    symbol = "\\vee"
-
-    def to_latex(self):
-        return f"({self.left.to_latex()} \\vee {self.right.to_latex()})"
 
     def left_rule(self):
+        """
+        {a} + L => R   {b} + L => R
+        ---------------------------
+             {a or b} + L => R
+        """
         return ({self.left}, set()), ({self.right}, set())
 
     def right_rule(self):
+        """
+        L => R + {a, b}
+        -----------------
+        L => R + {a or b}
+        """
         return set(), {self.left, self.right}
 
 
 @dataclass(eq=True, frozen=True)
-class Conjunction(ComplexSentence):
+class And(ComplexSentence):
     left: Sentence
     right: Sentence
 
     left_branching = False
     right_branching = True
-    symbol = "\\wedge"
-
-    def to_latex(self):
-        return f"({self.left.to_latex()} \\wedge {self.right.to_latex()})"
 
     def left_rule(self):
+        """
+           {a, b} + L => R
+        ------------------
+        {a and b} + L => R
+        """
         return {self.left, self.right}, set()
 
     def right(self):
+        """
+        L => R + {a}   L => R + {b}
+        ---------------------------
+             L => R + {a and b}
+        """
         return (set(), {self.left}), (set(), {self.right})
 
 
 @dataclass(eq=True, frozen=True)
-class Conditional(ComplexSentence):
-    antecedent: Sentence
-    consequent: Sentence
+class Cond(ComplexSentence):
+    ante: Sentence
+    cons: Sentence
 
     left_branching = True
     right_branching = False
-    symbol = "\\rightarrow"
-
-    def to_latex(self):
-        return f"({self.antecedent.to_latex()} \\rightarrow {self.consequent.to_latex()})"
 
     def left_rule(self):
-        return (set(), {self.antecedent}), ({self.consequent}, set())
+        """
+        L => R + {a}   {b} + L => R
+        ---------------------------
+            {a -> b} + L => R
+        """
+        return (set(), {self.ante}), ({self.cons}, set())
 
     def right_rule(self):
-        return {self.antecedent}, {self.consequent}
+        """
+        {a} + L => R + {b}
+        -----------------------
+              L => R + {a -> b}
+        """
+        return {self.ante}, {self.cons}
 
 
 class CounterExample(Exception):
@@ -118,118 +266,109 @@ class CounterExample(Exception):
 class RuleApp:
     sequent: "Sequent"
     children: List["RuleApp"]
-    rule: str
-
-    def to_latex(self):
-        if self.rule == "counter":
-            return f"\\hypo{{ {self.sequent.to_latex()} }}\n" + \
-                   "\\rewrite{\\color{red}\\box\\treebox}"
-        else:
-            return "\n".join(child.to_latex() for child in self.children) + \
-                   f"\n\\infer{len(self.children)}[{self.rule}]{{ {self.sequent.to_latex()} }}"
 
 
 @dataclass(eq=True, frozen=True)
 class Sequent:
-    antecedents: Set[Sentence]
-    consequents: Set[Sentence]
-
-    def to_latex(self):
-        left = ", ".join(antecedent.to_latex() for antecedent in self.antecedents) or "Ø"
-        right = ", ".join(consequent.to_latex() for consequent in self.consequents) or "Ø"
-        return f"{left} &\\Rightarrow {right}"
+    ante: Set[Sentence]
+    cons: Set[Sentence]
 
     @classmethod
     def from_left_app(cls, sentence, old_ante, old_cons, new_ante, new_cons):
-        antecedents = (old_ante - {sentence}) | new_ante
-        consequents = old_cons | new_cons
-        return Sequent(antecedents, consequents)
+        ante = (old_ante - {sentence}) | new_ante
+        cons = old_cons | new_cons
+        return Sequent(ante, cons)
 
     @classmethod
     def from_right_app(cls, sentence, old_ante, old_cons, new_ante, new_cons):
-        antecedents = old_ante | new_ante
-        consequents = (old_cons - {sentence}) | new_cons
-        return Sequent(antecedents, consequents)
+        ante = old_ante | new_ante
+        cons = (old_cons - {sentence}) | new_cons
+        return Sequent(ante, cons)
 
     def prove(self):
         # First off we try to solve all the non-branching connectives
-        for sentence in self.antecedents:
+        for sentence in self.ante:
             if isinstance(sentence, ComplexSentence) and not sentence.left_branching:
                 new_sequent = Sequent.from_left_app(sentence,
-                                                    self.antecedents, self.consequents,
+                                                    self.ante, self.cons,
                                                     *sentence.left_rule())
                 new_proof = new_sequent.prove()
-                return RuleApp(self, [new_proof], f"left {sentence.symbol}")
-        for sentence in self.consequents:
+                return RuleApp(self, [new_proof])
+        for sentence in self.cons:
             if isinstance(sentence, ComplexSentence) and not sentence.right_branching:
                 new_sequent = Sequent.from_right_app(sentence,
-                                                     self.antecedents, self.consequents,
+                                                     self.ante, self.cons,
                                                      *sentence.right_rule())
                 new_proof = new_sequent.prove()
-                return RuleApp(self, [new_proof], f"right {sentence.symbol}")
+                return RuleApp(self, [new_proof])
 
         # There are no non-branching rules left, time to branch
-        for sentence in self.antecedents:
+        for sentence in self.ante:
             if isinstance(sentence, ComplexSentence) and sentence.left_branching:
                 res_left, res_right = sentence.left_rule()
 
                 left_sequent = Sequent.from_left_app(sentence,
-                                                     self.antecedents, self.consequents,
+                                                     self.ante, self.cons,
                                                      *res_left)
                 left_proof = left_sequent.prove()
 
                 right_sequent = Sequent.from_left_app(sentence,
-                                                      self.antecedents, self.consequents,
+                                                      self.ante, self.cons,
                                                       *res_right)
                 right_proof = right_sequent.prove()
 
-                return RuleApp(self, [left_proof, right_proof], f"left {sentence.symbol}")
-        for sentence in self.consequents:
+                return RuleApp(self, [left_proof, right_proof])
+        for sentence in self.cons:
             if isinstance(sentence, ComplexSentence) and sentence.right_branching:
                 res_left, res_right = sentence.right_rule()
 
                 left_sequent = Sequent.from_right_app(sentence,
-                                                      self.antecedents, self.consequents,
+                                                      self.ante, self.cons,
                                                       *res_left)
                 left_proof = left_sequent.prove()
 
                 right_sequent = Sequent.from_right_app(sentence,
-                                                       self.antecedents, self.consequents,
+                                                       self.ante, self.cons,
                                                        *res_right)
                 right_proof = right_sequent.prove()
 
-                return RuleApp(self, [left_proof, right_proof], f"right {sentence.symbol}")
+                return RuleApp(self, [left_proof, right_proof])
 
         # All the sentences we have left are atomic. We can apply the thinning
         # rule to either close this branch off or obtain a counterexample.
-        common = self.antecedents & self.consequents
+        common = self.ante & self.cons
         if len(common):
-            if len(self.antecedents) > 1 or len(self.consequents) > 1:
+            if len(self.ante) > 1 or len(self.cons) > 1:
                 eve_prop = list(common)[0]
                 axiom = Sequent({eve_prop}, {eve_prop})
-                return RuleApp(self, [RuleApp(axiom, [], "axiom")], "thinning")
+                return RuleApp(self, [RuleApp(axiom, [])])
             else:
-                return RuleApp(self, [], "axiom")
+                return RuleApp(self, [])
         else:
-            return RuleApp(self, [], "counter")
+            counter = {}
+            for proposition in self.ante:
+                counter[proposition] = True
+            for proposition in self.cons:
+                counter[proposition] = False
+            raise CounterExample(counter)
 
 
 if __name__ == "__main__":
-    ante = {Conditional(Disjunction(Variable("A"), Negation(Variable("B"))), Variable("C")),
-            Conditional(Variable("B"), Negation(Variable("D"))),
-            Variable("D")}
-    cons = {Variable("C")}
-    # ante = {Variable("Q"),
-    #         Conditional(Variable("P"), Variable("Q"))}
-    # cons = {Variable("P")}
+    ante = {Cond(Or(Var("A"), Not(Var("B"))), Var("C")),
+            Cond(Var("B"), Not(Var("D"))),
+            Var("D")}
+    cons = {Var("C")}
+    # ante = {Var("Q"),
+    #         Cond(Var("P"), Var("Q"))}
+    # cons = {Var("P")}
     # ante = set()
-    # cons = {Conditional(Variable("P"), Conditional(Variable("Q"), Variable("P")))}
-    # ante = {Variable("P")}
-    # cons = {Negation(Negation(Variable("P")))}
-    # ante = {Variable("P"),
-    #         Conditional(Variable("P"), Variable("Q")),
-    #         Conditional(Variable("Q"), Variable("R"))}
-    # cons = {Variable("R")}
+    # cons = {Cond(Var("P"), Cond(Var("Q"), Var("P")))}
+    # ante = {Var("P")}
+    # cons = {Not(Not(Var("P")))}
+    # ante = {Var("P"),
+    #         Cond(Var("P"), Var("Q")),
+    #         Cond(Var("Q"), Var("R"))}
+    # cons = {Var("R")}
     sequent = Sequent(ante, cons)
     proof = sequent.prove()
     print(proof.to_latex())
