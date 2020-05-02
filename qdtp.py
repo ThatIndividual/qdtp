@@ -339,6 +339,17 @@ class Sequent:
 
         # All the sentences we have left are atomic. We can apply the thinning
         # rule to either close this branch off or obtain a counterexample.
+        #
+        # Thinning:
+        #     L => R
+        # --------------
+        # K + L => R + S
+        #
+        # Axiom:
+        #
+        # ------
+        # L => L
+
         common = self.ante & self.cons
         if len(common):
             if len(self.ante) > 1 or len(self.cons) > 1:
