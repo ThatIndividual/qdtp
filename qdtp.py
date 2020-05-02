@@ -137,6 +137,7 @@ and we can stop applying any further rules as on counterexample is enough for
 the given argument to be proven invalid.
 """
 
+
 class Sentence(metaclass=ABCMeta):
     pass
 
@@ -224,7 +225,7 @@ class And(ComplexSentence):
         """
         return {self.left, self.right}, set()
 
-    def right(self):
+    def right_rule(self):
         """
         L => R + {a}   L => R + {b}
         ---------------------------
@@ -259,7 +260,8 @@ class Cond(ComplexSentence):
 
 
 class CounterExample(Exception):
-    pass
+    def __getitem__(self, item):
+        return self.args[0][item]
 
 
 @dataclass(eq=True, frozen=True)
@@ -347,29 +349,7 @@ class Sequent:
         else:
             counter = {}
             for proposition in self.ante:
-                counter[proposition] = True
+                counter[proposition.symbol] = True
             for proposition in self.cons:
-                counter[proposition] = False
+                counter[proposition.symbol] = False
             raise CounterExample(counter)
-
-
-if __name__ == "__main__":
-    ante = {Cond(Or(Var("A"), Not(Var("B"))), Var("C")),
-            Cond(Var("B"), Not(Var("D"))),
-            Var("D")}
-    cons = {Var("C")}
-    # ante = {Var("Q"),
-    #         Cond(Var("P"), Var("Q"))}
-    # cons = {Var("P")}
-    # ante = set()
-    # cons = {Cond(Var("P"), Cond(Var("Q"), Var("P")))}
-    # ante = {Var("P")}
-    # cons = {Not(Not(Var("P")))}
-    # ante = {Var("P"),
-    #         Cond(Var("P"), Var("Q")),
-    #         Cond(Var("Q"), Var("R"))}
-    # cons = {Var("R")}
-    sequent = Sequent(ante, cons)
-    proof = sequent.prove()
-    print(proof.to_latex())
-    pass
